@@ -212,7 +212,8 @@ public class JarvisService extends Service {
         for(String a:aliases) if(rest.startsWith(a) && contactNameMatches(a,saved))return a;
         return "";
     }
-\n    private Contact findContact(String spokenName){
+
+    private Contact findContact(String spokenName){
         if(checkSelfPermission(android.Manifest.permission.READ_CONTACTS)!=PackageManager.PERMISSION_GRANTED){say("Разреши доступ к контактам в настройках приложения.");return null;}
         Cursor cur=null; Contact found=null; int best=0;
         try{
