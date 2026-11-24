@@ -73,7 +73,8 @@ app.post("/api/auth/register",async(req,res)=>{
 app.post("/api/auth/register-owner",async(req,res)=>{
  try {
   const key=String(req.headers["x-owner-setup-key"]||"");
-  const suppliedKey=Buffer.from(key); const expectedKey=Buffer.from(process.env.OWNER_SETUP_KEY);\n  if(!key || suppliedKey.length!==expectedKey.length || !crypto.timingSafeEqual(suppliedKey,expectedKey)) return res.status(403).json({error:"Invalid owner setup key"});
+  const suppliedKey=Buffer.from(key); const expectedKey=Buffer.from(process.env.OWNER_SETUP_KEY);
+  if(!key || suppliedKey.length!==expectedKey.length || !crypto.timingSafeEqual(suppliedKey,expectedKey)) return res.status(403).json({error:"Invalid owner setup key"});
   const password=String(req.body.password||"");
   if(password.length<12||password.length>128) return res.status(400).json({error:"Owner password must contain at least 12 characters"});
   const existing=await pool.query("SELECT id FROM users WHERE role='owner' OR username='12111'");
