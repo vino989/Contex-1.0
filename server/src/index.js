@@ -53,6 +53,10 @@ const safeUser = u => ({username:u.username,role:u.role});
 const randomCode = () => String(crypto.randomInt(0,1000000)).padStart(6,"0");
 const hash = s => crypto.createHash("sha256").update(s).digest("hex");
 
+app.get("/",(_req,res)=>res.type("html").send(`<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CORTEX CONTROL API</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#080d18;color:#eaf3ff;font:16px system-ui,sans-serif}.card{max-width:680px;margin:24px;padding:32px;border:1px solid #1d4261;border-radius:22px;background:linear-gradient(145deg,#101d31,#09111f);box-shadow:0 20px 80px #0008}h1{letter-spacing:.12em;color:#55d9ff}p{line-height:1.6;color:#b8c8dc}.status{color:#7dffbd}.links a{color:#55d9ff;margin-right:18px}</style></head>
+<body><main class="card"><h1>CORTEX CONTROL</h1><p class="status">● API service is online</p><p>Сервер приложения CORTEX CONTROL. Он обслуживает авторизацию, безопасное сопряжение устройств и передачу разрешённых команд.</p><p class="links"><a href="/health">Проверить API</a><a href="/api">API</a></p></main></body></html>`));
 app.get("/health",(_req,res)=>res.json({ok:true,service:"CORTEX CONTROL",version:"1.0.0"}));
 
 app.post("/api/auth/register",async(req,res)=>{
@@ -69,7 +73,7 @@ app.post("/api/auth/register",async(req,res)=>{
 app.post("/api/auth/register-owner",async(req,res)=>{
  try {
   const key=String(req.headers["x-owner-setup-key"]||"");
-  if(!key || !crypto.timingSafeEqual(Buffer.from(key.padEnd(64,"0").slice(0,64)),Buffer.from(process.env.OWNER_SETUP_KEY.padEnd(64,"0").slice(0,64)))) return res.status(403).json({error:"Invalid owner setup key"});
+  const suppliedKey=Buffer.from(key); const expectedKey=Buffer.from(process.env.OWNER_SETUP_KEY);\n  if(!key || suppliedKey.length!==expectedKey.length || !crypto.timingSafeEqual(suppliedKey,expectedKey)) return res.status(403).json({error:"Invalid owner setup key"});
   const password=String(req.body.password||"");
   if(password.length<12||password.length>128) return res.status(400).json({error:"Owner password must contain at least 12 characters"});
   const existing=await pool.query("SELECT id FROM users WHERE role='owner' OR username='12111'");
