@@ -8,6 +8,10 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.widget.*;
+import android.content.Intent;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Locale;
@@ -87,6 +91,10 @@ public class MainActivity extends Activity {
         top.addView(account, new LinearLayout.LayoutParams(0, -2, 1));
         Button picker = button("▣  ВЫБРАТЬ ТЕЛЕФОН  ⋮"); top.addView(picker); root.addView(top);
         TextView status = text("Устройства пока не подключены", 15, 0xffb4c5d6); status.setPadding(0, 28, 0, 20); root.addView(status);
+        Button jarvis = button("🎙  АКТИВИРОВАТЬ JARVIS"); root.addView(jarvis);
+        TextView jarvisInfo = text("Скажи «Jarvis, открой YouTube» или «Jarvis, домой», даже находясь в другом приложении. Для работы показывается постоянное уведомление.", 13, 0xffb4c5d6);
+        jarvisInfo.setPadding(0, 8, 0, 18); root.addView(jarvisInfo);
+        jarvis.setOnClickListener(v -> toggleJarvis(jarvis));
         Button devices = button("МОИ УСТРОЙСТВА"); root.addView(devices);
         Button connect = button("＋  ПОДКЛЮЧИТЬ УСТРОЙСТВО"); root.addView(connect);
         Button screen = button("ПОСМОТРЕТЬ ЭКРАН"); root.addView(screen);
@@ -105,6 +113,24 @@ public class MainActivity extends Activity {
         end.setOnClickListener(v -> { status.setText("Активных сеансов нет"); toast("Сеанс завершён"); });
         Button logout = button("ВЫЙТИ ИЗ АККАУНТА"); root.addView(logout);
         logout.setOnClickListener(v -> { signedIn = ""; registerMode = false; showAuth(); });
+    }
+    private void toggleJarvis(Button control) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 41);
+            toast("Разреши микрофон, затем снова нажми «Активировать JARVIS»");
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 42);
+            toast("Разреши уведомления и снова нажми кнопку JARVIS.");
+            return;
+        }
+        Intent service = new Intent(this, JarvisService.class);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+            control.setText("JARVIS ЗАПУЩЕН • выключить в уведомлении");
+            toast("JARVIS включён. Перейди в другое приложение и скажи «Jarvis».");
+        } catch (Exception e) { toast("Не удалось включить JARVIS. Открой приложение и попробуй ещё раз."); }
     }
     private void showDevicePicker() {
         new AlertDialog.Builder(this).setTitle("Выбрать телефон")
