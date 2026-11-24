@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.*;
 import android.content.Intent;
 import android.Manifest;
@@ -17,7 +18,7 @@ import java.security.MessageDigest;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
-    private static final String CREATOR = "vano2111";
+    private static final String CREATOR = "12111";
     private SharedPreferences prefs;
     private LinearLayout root;
     private boolean registerMode = false;
@@ -100,9 +101,17 @@ public class MainActivity extends Activity {
         Button screen = button("ПОСМОТРЕТЬ ЭКРАН"); root.addView(screen);
         Button camera = button("КАМЕРА"); root.addView(camera);
         Button end = button("ЗАВЕРШИТЬ СЕАНС"); root.addView(end);
-        TextView info = text(creator ? "РЕЖИМ СОЗДАТЕЛЯ • сопряжение устройств требует серверной части." : "Управление устройствами пока демонстрационное: сначала нужно подключить защищённый сервер.", 13, 0xff55ddff);
+        if (!creator) {
+            picker.setVisibility(View.GONE);
+            devices.setVisibility(View.GONE);
+            connect.setVisibility(View.GONE);
+            screen.setVisibility(View.GONE);
+            camera.setVisibility(View.GONE);
+            end.setVisibility(View.GONE);
+        }
+        TextView info = text(creator ? "РЕЖИМ ВЛАДЕЛЬЦА • ник 12111. Удалённое управление станет доступно после защищённого сопряжения и подтверждения на втором телефоне." : "Голосовой помощник доступен. Панель управления устройствами доступна только аккаунту 12111.", 13, 0xff55ddff);
         info.setPadding(0, 24, 0, 12); root.addView(info);
-        // Кнопки видны всем вошедшим пользователям. Реальное подключение появится после настройки сервера и подтверждения на втором телефоне.
+        // Панель управления показывается только локальному аккаунту 12111. Для надёжной защиты потребуется серверная проверка личности.
         picker.setOnClickListener(v -> showDevicePicker());
         devices.setOnClickListener(v -> showDevicePicker());
         connect.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Подключение телефона")
