@@ -100,10 +100,9 @@ public class MainActivity extends Activity {
         Button screen = button("ПОСМОТРЕТЬ ЭКРАН"); root.addView(screen);
         Button camera = button("КАМЕРА"); root.addView(camera);
         Button end = button("ЗАВЕРШИТЬ СЕАНС"); root.addView(end);
-        TextView info = text(creator ? "Режим создателя: доступ к выбору устройств отображён." : "Обычный аккаунт: управление устройствами недоступно.", 13, 0xff55ddff);
+        TextView info = text(creator ? "РЕЖИМ СОЗДАТЕЛЯ • сопряжение устройств требует серверной части." : "Управление устройствами пока демонстрационное: сначала нужно подключить защищённый сервер.", 13, 0xff55ddff);
         info.setPadding(0, 24, 0, 12); root.addView(info);
-        picker.setEnabled(creator); devices.setEnabled(creator); connect.setEnabled(creator);
-        screen.setEnabled(creator); camera.setEnabled(creator); end.setEnabled(creator);
+        // Кнопки видны всем вошедшим пользователям. Реальное подключение появится после настройки сервера и подтверждения на втором телефоне.
         picker.setOnClickListener(v -> showDevicePicker());
         devices.setOnClickListener(v -> showDevicePicker());
         connect.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Подключение телефона")
@@ -122,8 +121,7 @@ public class MainActivity extends Activity {
         }
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, 43);
-            toast("Разреши доступ к контактам, чтобы JARVIS мог находить людей для звонков и сообщений. Затем снова нажми кнопку.");
-            return;
+            toast("Разреши доступ к контактам, чтобы JARVIS мог находить людей. Голосовой помощник запустится и без этого разрешения.");
         }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 42);
