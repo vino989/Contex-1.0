@@ -120,6 +120,11 @@ public class MainActivity extends Activity {
             toast("Разреши микрофон, затем снова нажми «Активировать JARVIS»");
             return;
         }
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, 43);
+            toast("Разреши доступ к контактам, чтобы JARVIS мог находить людей для звонков и сообщений. Затем снова нажми кнопку.");
+            return;
+        }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 42);
             toast("Разреши уведомления и снова нажми кнопку JARVIS.");
