@@ -4,6 +4,7 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pg from "pg";
+import rateLimit from "express-rate-limit";
 import crypto from "node:crypto";
 
 const { Pool } = pg;
@@ -11,6 +12,7 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : false }));
 app.use(express.json({ limit: "32kb" }));
+app.use("/api/", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false }));
 
 const required = ["DATABASE_URL", "JWT_SECRET", "OWNER_SETUP_KEY"];
 for (const key of required) if (!process.env[key]) throw new Error(`Missing environment variable: ${key}`);
@@ -133,7 +135,7 @@ app.get("/api/pairing/pending",deviceAuth,async(req,res)=>{
 
 app.post("/api/pairing/:id/approve",deviceAuth,async(req,res)=>{
  try {
-  const q=await pool.query("UPDATE pairings SET status='active' WHERE id=$1 AND device_id=$2 AND status='claimed' AND expires_at>now() RETURNING id",[req.params.id,req.device.id]);
+  const q=await pool.query("UPDATE pairings SET status='active', expires_at=now()+interval '10 years' WHERE id=$1 AND device_id=$2 AND status='claimed' AND expires_at>now() RETURNING id",[req.params.id,req.device.id]);
   if(!q.rowCount)return res.status(404).json({error:"No matching pending pairing"});
   res.json({ok:true,status:"active",message:"Remote access is now enabled. You can revoke it at any time."});
  }catch(e){console.error(e);res.status(500).json({error:"Server error"});}
