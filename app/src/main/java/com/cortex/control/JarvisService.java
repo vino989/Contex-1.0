@@ -108,9 +108,23 @@ public class JarvisService extends Service {
         }
         String app=extractAppName(cmd);
         if(!app.isEmpty()){ launchApp(app); return; }
-        if(cmd.contains("настройки")){ openIntent(new Intent(android.provider.Settings.ACTION_SETTINGS)); return; }
+        if(cmd.startsWith("найди в интернете ")||cmd.startsWith("поищи в интернете ")||cmd.startsWith("загугли ")){
+            String query=cmd.replaceFirst("^(найди в интернете|поищи в интернете|загугли) ","").trim();
+            if(!query.isEmpty()){
+                Intent search=new Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY,query).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                openIntent(search);
+            } else say("Что именно найти в интернете?");
+            return;
+        }
+        if(cmd.contains("настройки wi fi")||cmd.contains("настройки вай фай")){
+            openIntent(new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return;
+        }
+        if(cmd.contains("bluetooth")||cmd.contains("блютуз")){
+            openIntent(new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return;
+        }
+        if(cmd.contains("настройки")){ openIntent(new Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return; }
         if(cmd.contains("камера")){ launchApp("камера"); return; }
-        say("Команду пока не поняла. Скажи: открой YouTube, позвони папе или напиши маме я скоро буду.");
+        say("Не нашла подходящее действие. Можно сказать: открой Minecraft, позвони контакту папа, напиши контакту мама я скоро буду или найди в интернете погоду.");
     }
 
     private boolean isHome(String c){ return c.equals("домой")||c.equals("на главный экран")||c.equals("сверни приложение")||c.equals("вернись на главный экран"); }
@@ -120,7 +134,7 @@ public class JarvisService extends Service {
     }
 
     private String extractAppName(String c){
-        String[] prefixes={"открой приложение ","открой игру ","открой ","запусти приложение ","запусти игру ","запусти ","включи ","играй в ","поиграй в ","хочу поиграть в ","покажи ","перейди в "};
+        String[] prefixes={"открой приложение ","открой игру ","открой ","запусти приложение ","запусти игру ","запусти ","включи ","играй в ","поиграй в ","хочу поиграть в ","запусти игру под названием ","открой игру под названием ","покажи ","перейди в "};
         for(String prefix:prefixes) if(c.startsWith(prefix)) return c.substring(prefix.length()).trim();
         return "";
     }
