@@ -164,7 +164,7 @@ public class JarvisService extends Service {
     }
 
     private void composeMessage(String command){
-        String rest=command.replaceFirst("^(отправь сообщение|напиши|смс) ","").trim();
+        String rest=command.replaceFirst("^(отправь сообщение|напиши|смс) ","").replaceFirst("^контакту ","").trim();
         Contact match=null; String body="";
         if(checkSelfPermission(android.Manifest.permission.READ_CONTACTS)==PackageManager.PERMISSION_GRANTED){
             Cursor cur=null;
@@ -190,7 +190,28 @@ public class JarvisService extends Service {
         openIntent(i);
     }
 
-    private Contact findContact(String spokenName){
+
+    private boolean contactNameMatches(String spoken,String saved){
+        if(spoken.equals(saved)||saved.contains(spoken)||spoken.contains(saved))return true;
+        String base=spoken;
+        if(spoken.equals("папе")||spoken.equals("папу"))base="папа";
+        if(spoken.equals("маме")||spoken.equals("маму"))base="мама";
+        if(spoken.equals("бабушке"))base="бабушка";
+        if(spoken.equals("дедушке"))base="дедушка";
+        if(spoken.equals("брату"))base="брат";
+        if(spoken.equals("сестре"))base="сестра";
+        return saved.equals(base)||saved.contains(base)||base.contains(saved)
+            || (base.equals("папа")&&saved.equals("папуля"))
+            || (base.equals("мама")&&saved.equals("мамуля"));
+    }
+
+    private String contactPrefix(String rest,String saved){
+        if(rest.startsWith(saved))return saved;
+        String[] aliases={"папе","папу","маме","маму","бабушке","дедушке","брату","сестре","папуля","мамуля"};
+        for(String a:aliases) if(rest.startsWith(a) && contactNameMatches(a,saved))return a;
+        return "";
+    }
+\n    private Contact findContact(String spokenName){
         if(checkSelfPermission(android.Manifest.permission.READ_CONTACTS)!=PackageManager.PERMISSION_GRANTED){say("Разреши доступ к контактам в настройках приложения.");return null;}
         Cursor cur=null; Contact found=null; int best=0;
         try{
@@ -200,7 +221,7 @@ public class JarvisService extends Service {
             String wanted=clean(spokenName);
             if(cur!=null)while(cur.moveToNext()){
                 String name=cur.getString(0), number=cur.getString(1), n=clean(name);
-                if(n.equals(wanted)||n.contains(wanted)||wanted.contains(n)){
+                if(contactNameMatches(wanted,n)){
                     if(n.length()>best){best=n.length();found=new Contact(name,number);}
                 }
             }
