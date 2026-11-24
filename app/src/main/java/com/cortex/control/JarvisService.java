@@ -176,8 +176,9 @@ public class JarvisService extends Service {
                 if(cur!=null)while(cur.moveToNext()){
                     String name=cur.getString(0), number=cur.getString(1);
                     String n=clean(name);
-                    if(!n.isEmpty() && rest.startsWith(n) && n.length()>best){
-                        best=n.length(); match=new Contact(name,number); body=rest.substring(best).trim();
+                    String prefix=contactPrefix(rest,n);
+                    if(!prefix.isEmpty() && prefix.length()>best){
+                        best=prefix.length(); match=new Contact(name,number); body=rest.substring(best).trim();
                     }
                 }
             }catch(Exception ignored){}finally{if(cur!=null)cur.close();}
