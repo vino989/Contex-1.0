@@ -1,35 +1,121 @@
 package com.cortex.control;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.provider.ContactsContract;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
-import android.speech.RecognitionListener;
+import android.text.InputType;
+import android.view.Gravity;
 import android.widget.*;
-import android.view.View;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
- TextView status; EditText command; SpeechRecognizer recognizer;
- @Override public void onCreate(Bundle b){super.onCreate(b); LinearLayout l=new LinearLayout(this); l.setOrientation(1); l.setPadding(32,48,32,32); l.setBackgroundColor(0xff07111f);
- TextView title=new TextView(this); title.setText("CORTEX CONTROL"); title.setTextColor(0xff55ddff); title.setTextSize(26); l.addView(title);
- TextView hint=new TextView(this); hint.setText("Голосовое управление телефоном"); hint.setTextColor(-1); l.addView(hint);
- command=new EditText(this); command.setHint("Например: Напиши контакту Папуля, я тебя люблю"); command.setTextColor(-1); command.setHintTextColor(0xff9aaabd); l.addView(command);
- Button mic=new Button(this); mic.setText("🎙 Слушать команду"); l.addView(mic);
- Button run=new Button(this); run.setText("Выполнить"); l.addView(run);
- status=new TextView(this); status.setTextColor(0xff55ddff); status.setText("Команды выполняются только на этом телефоне."); l.addView(status); setContentView(l);
- mic.setOnClickListener(v->listen()); run.setOnClickListener(v->handle(command.getText().toString()));
- }
- void listen(){ if(!SpeechRecognizer.isRecognitionAvailable(this)){status.setText("Распознавание речи недоступно");return;} if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},1);return;} recognizer=SpeechRecognizer.createSpeechRecognizer(this); recognizer.setRecognitionListener(new RecognitionListener(){public void onReadyForSpeech(Bundle b){status.setText("Слушаю...");} public void onBeginningOfSpeech(){} public void onRmsChanged(float x){} public void onBufferReceived(byte[] b){} public void onEndOfSpeech(){} public void onError(int e){status.setText("Не удалось распознать речь. Попробуй ещё раз.");} public void onResults(Bundle b){ArrayList<String>a=b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION); if(a!=null&&!a.isEmpty()){command.setText(a.get(0));handle(a.get(0));}} public void onPartialResults(Bundle b){} public void onEvent(int t,Bundle b){} }); Intent i=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM); i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ru-RU"); recognizer.startListening(i); }
- void handle(String s){String t=s.trim(); String low=t.toLowerCase(Locale.ROOT); if(low.startsWith("напиши контакту ")){String rest=t.substring("напиши контакту ".length()); int comma=rest.indexOf(','); if(comma<0){status.setText("Скажи: Напиши контакту Папуля, я тебя люблю");return;} String name=rest.substring(0,comma).trim(); String body=rest.substring(comma+1).trim(); findContact(name,body);return;} if(low.startsWith("открой ")||low.startsWith("запусти ")){String app=t.substring(t.indexOf(' ')+1).trim(); Intent launch=getPackageManager().getLaunchIntentForPackage(resolvePackage(app)); if(launch!=null){startActivity(launch);status.setText("Открываю "+app);}else status.setText("Не нашёл приложение: "+app);return;} if(low.equals("домой")){startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME));return;} status.setText("Команда не распознана. Попробуй: открой YouTube или напиши контакту Папуля, я тебя люблю."); }
- String resolvePackage(String label){android.content.Intent i=new android.content.Intent(Intent.ACTION_MAIN);i.addCategory(Intent.CATEGORY_LAUNCHER); for(android.content.pm.ResolveInfo r:getPackageManager().queryIntentActivities(i,0)){CharSequence n=r.loadLabel(getPackageManager());if(n!=null&&n.toString().equalsIgnoreCase(label))return r.activityInfo.packageName;}return "";}
- void findContact(String name,String body){if(checkSelfPermission(Manifest.permission.READ_CONTACTS)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.READ_CONTACTS},2);status.setText("Разреши доступ к контактам и повтори команду.");return;} ArrayList<String> numbers=new ArrayList<>(); try(android.database.Cursor c=getContentResolver().query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER,ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME},ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME+" LIKE ?",new String[]{"%"+name+"%"},null)){while(c!=null&&c.moveToNext())numbers.add(c.getString(0));}catch(Exception e){status.setText("Не удалось прочитать контакты");return;} if(numbers.isEmpty()){status.setText("Контакт «"+name+"» не найден.");return;} if(numbers.size()==1){compose(numbers.get(0),body);return;} new AlertDialog.Builder(this).setTitle("Выбери номер контакта").setItems(numbers.toArray(new String[0]),(d,w)->compose(numbers.get(w),body)).show(); }
- void compose(String number,String body){Intent i=new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"+Uri.encode(number)));i.putExtra("sms_body",body);try{startActivity(i);status.setText("Проверь сообщение и нажми «Отправить» в SMS-приложении.");}catch(Exception e){status.setText("Не удалось открыть SMS-приложение.");}}
- @Override protected void onDestroy(){if(recognizer!=null)recognizer.destroy();super.onDestroy();}
+    private static final String CREATOR = "vano2111";
+    private SharedPreferences prefs;
+    private LinearLayout root;
+    private boolean registerMode = false;
+    private String signedIn = "";
+
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        prefs = getSharedPreferences("cortex_accounts", MODE_PRIVATE);
+        showAuth();
+    }
+
+    private TextView text(String value, int size, int color) {
+        TextView t = new TextView(this); t.setText(value); t.setTextSize(size);
+        t.setTextColor(color); t.setGravity(Gravity.CENTER); return t;
+    }
+    private Button button(String value) {
+        Button b = new Button(this); b.setText(value); return b;
+    }
+    private EditText field(String hint, boolean password) {
+        EditText e = new EditText(this); e.setSingleLine(true); e.setHint(hint);
+        e.setTextColor(Color.WHITE); e.setHintTextColor(0xff8fa6bb);
+        if (password) e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        e.setPadding(24, 12, 24, 12); return e;
+    }
+    private void base(String heading, String subheading) {
+        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(28, 28, 28, 28); root.setBackgroundColor(0xff07111f);
+        ScrollView scroll = new ScrollView(this); scroll.addView(root);
+        setContentView(scroll);
+        TextView title = text(heading, 27, 0xff55ddff); title.setPadding(0, 22, 0, 8); root.addView(title);
+        TextView sub = text(subheading, 14, 0xffb4c5d6); sub.setPadding(0, 0, 0, 24); root.addView(sub);
+    }
+    private void showAuth() {
+        base("CORTEX CONTROL", registerMode ? "СОЗДАНИЕ АККАУНТА" : "АВТОРИЗАЦИЯ");
+        EditText username = field("Логин", false); root.addView(username);
+        EditText password = field("Пароль", true); root.addView(password);
+        Button primary = button(registerMode ? "ЗАРЕГИСТРИРОВАТЬСЯ" : "ВОЙТИ"); root.addView(primary);
+        Button toggle = button(registerMode ? "Уже есть аккаунт — войти" : "Создать аккаунт"); root.addView(toggle);
+        TextView note = text("Аккаунты этой демонстрационной версии хранятся только на этом телефоне. Для настоящего входа с разных устройств нужен сервер авторизации.", 12, 0xffffc66d);
+        note.setPadding(4, 22, 4, 0); root.addView(note);
+        primary.setOnClickListener(v -> {
+            String u = username.getText().toString().trim().toLowerCase(Locale.ROOT);
+            String p = password.getText().toString();
+            if (u.isEmpty() || p.length() < 8) { toast("Введи логин и пароль не короче 8 символов"); return; }
+            if (registerMode) {
+                if (prefs.contains("user_" + u)) { toast("Такой аккаунт уже существует"); return; }
+                if (u.equals(CREATOR) && prefs.getBoolean("creator_claimed", false)) { toast("Аккаунт создателя уже зарегистрирован"); return; }
+                prefs.edit().putString("user_" + u, hash(p)).putBoolean(u.equals(CREATOR) ? "creator_claimed" : "unused", true).apply();
+                toast("Аккаунт создан. Теперь войди.");
+                registerMode = false; showAuth();
+            } else {
+                String saved = prefs.getString("user_" + u, null);
+                if (saved == null || !saved.equals(hash(p))) { toast("Неверный логин или пароль"); return; }
+                signedIn = u; showDashboard();
+            }
+        });
+        toggle.setOnClickListener(v -> { registerMode = !registerMode; showAuth(); });
+    }
+    private String hash(String value) {
+        try {
+            byte[] bytes = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder out = new StringBuilder(); for (byte b : bytes) out.append(String.format(Locale.US, "%02x", b));
+            return out.toString();
+        } catch (Exception e) { return ""; }
+    }
+    private void showDashboard() {
+        boolean creator = CREATOR.equals(signedIn);
+        base("CORTEX CONTROL", "ПАНЕЛЬ УПРАВЛЕНИЯ  •  " + signedIn);
+        LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        TextView account = text(creator ? "СОЗДАТЕЛЬ" : "ПОЛЬЗОВАТЕЛЬ", 12, creator ? 0xff55ddff : 0xffb4c5d6);
+        top.addView(account, new LinearLayout.LayoutParams(0, -2, 1));
+        Button picker = button("▣  ВЫБРАТЬ ТЕЛЕФОН  ⋮"); top.addView(picker); root.addView(top);
+        TextView status = text("Устройства пока не подключены", 15, 0xffb4c5d6); status.setPadding(0, 28, 0, 20); root.addView(status);
+        Button devices = button("МОИ УСТРОЙСТВА"); root.addView(devices);
+        Button connect = button("＋  ПОДКЛЮЧИТЬ УСТРОЙСТВО"); root.addView(connect);
+        Button screen = button("ПОСМОТРЕТЬ ЭКРАН"); root.addView(screen);
+        Button camera = button("КАМЕРА"); root.addView(camera);
+        Button end = button("ЗАВЕРШИТЬ СЕАНС"); root.addView(end);
+        TextView info = text(creator ? "Режим создателя: доступ к выбору устройств отображён." : "Обычный аккаунт: управление устройствами недоступно.", 13, 0xff55ddff);
+        info.setPadding(0, 24, 0, 12); root.addView(info);
+        picker.setEnabled(creator); devices.setEnabled(creator); connect.setEnabled(creator);
+        screen.setEnabled(creator); camera.setEnabled(creator); end.setEnabled(creator);
+        picker.setOnClickListener(v -> showDevicePicker());
+        devices.setOnClickListener(v -> showDevicePicker());
+        connect.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Подключение телефона")
+            .setMessage("На втором телефоне должно быть установлено CORTEX CONTROL. Владелец устройства должен подтвердить сопряжение.").setPositiveButton("Понятно", null).show());
+        screen.setOnClickListener(v -> explainConsent());
+        camera.setOnClickListener(v -> explainConsent());
+        end.setOnClickListener(v -> { status.setText("Активных сеансов нет"); toast("Сеанс завершён"); });
+        Button logout = button("ВЫЙТИ ИЗ АККАУНТА"); root.addView(logout);
+        logout.setOnClickListener(v -> { signedIn = ""; registerMode = false; showAuth(); });
+    }
+    private void showDevicePicker() {
+        new AlertDialog.Builder(this).setTitle("Выбрать телефон")
+            .setItems(new String[]{"Устройства ещё не сопряжены", "＋ Добавить телефон"}, (d, which) -> {
+                if (which == 1) new AlertDialog.Builder(this).setMessage("Сопряжение появится после подключения защищённого сервера. На телефоне друга обязательно подтверждение владельца.").setPositiveButton("ОК", null).show();
+            }).setNegativeButton("Закрыть", null).show();
+    }
+    private void explainConsent() {
+        new AlertDialog.Builder(this).setTitle("Требуется подтверждение")
+            .setMessage("Просмотр экрана или камеры ещё не подключён. В рабочей версии владелец второго телефона должен явно разрешить сеанс; индикатор будет виден, а отключить сеанс можно в любой момент.")
+            .setPositiveButton("Понятно", null).show();
+    }
+    private void toast(String message) { Toast.makeText(this, message, Toast.LENGTH_LONG).show(); }
 }
